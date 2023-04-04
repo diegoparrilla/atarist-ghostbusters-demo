@@ -1,0 +1,80 @@
+# Version from file
+VERSION := $(shell cat version.txt)
+
+# Folder and file names
+ODIR = ./obj
+SOURCES_DIR = ./src
+BUILD_DIR = ./build
+DIST_DIR = ./dist
+RESOURCES_DIR = ./resources
+EXE = GHOST.PRG
+
+# VASM PARAMETERS
+# _DEBUG: 1 to enable debug, 0 to disable them
+# To disable debug, make target DEBUG_MODE=0
+DEBUG_MODE = 1
+VASMFLAGS=-Faout -quiet -x -m68000 -spaces -showopt -devpac -D_DEBUG=$(DEBUG_MODE)
+VASM = vasm 
+VLINK =  vlink
+
+# LIBCMINI PARAMETERS
+# IMPORTANT! There is functional verson of the LIBCMINI library in the docker image
+# To reference the library, it must set the absolute path inside the container image
+# The library is stored in /freemint/libcmini 
+# More info about the library: https://github.com/freemint/libcmini
+LIBCMINI = /freemint/libcmini
+
+# GCC PARAMETERS
+CC = m68k-atari-mint-gcc
+CFLAGS=-c -std=gnu99 -I$(LIBCMINI)/include -g -D_DEBUG=$(DEBUG_MODE)
+
+# LINKER PARAMETERS
+# Add the -s option to strip the binary
+LINKFLAGS=-nostdlib -L$(LIBCMINI)/lib -lcmini -lgcc -Wl,--traditional-format
+
+_OBJS = 
+
+OBJS = $(patsubst %,$(ODIR)/%,$(_OBJS))
+
+.PHONY: all
+all: prepare dist
+
+.PHONY: release
+release: prepare dist
+
+.PHONY: prepare
+prepare: clean
+	mkdir -p $(BUILD_DIR)
+
+clean-compile : clean ghost.o
+
+ghost.o: prepare
+	$(VASM) $(VASMFLAGS) $(SOURCES_DIR)/ghost.s -o $(BUILD_DIR)/ghost.o
+
+main: ghost.o
+	$(CC) $(BUILD_DIR)/ghost.o -o $(BUILD_DIR)/$(EXE) $(LINKFLAGS);
+
+.PHONY: dist
+dist: main
+	mkdir -p $(DIST_DIR)
+	cp $(BUILD_DIR)/$(EXE) $(DIST_DIR) 	
+	cp $(RESOURCES_DIR)/G1.SAM $(DIST_DIR)
+	cp $(RESOURCES_DIR)/G2.SAM $(DIST_DIR)
+	cp $(RESOURCES_DIR)/G3.SAM $(DIST_DIR)
+	cp $(RESOURCES_DIR)/G4.SAM $(DIST_DIR)
+	cp $(RESOURCES_DIR)/G5.SAM $(DIST_DIR)
+	cp $(RESOURCES_DIR)/G6.SAM $(DIST_DIR)
+	cp $(RESOURCES_DIR)/G7.SAM $(DIST_DIR)
+	cp $(RESOURCES_DIR)/G8.SAM $(DIST_DIR)
+	cp $(RESOURCES_DIR)/G9.SAM $(DIST_DIR)
+
+.PHONY: clean
+clean:
+	rm -rf $(BUILD_DIR)
+	rm -rf $(DIST_DIR)
+
+## Tag this version
+.PHONY: tag
+tag:
+	git tag v$(VERSION) && git push origin v$(VERSION) && \
+	echo "Tagged: $(VERSION)"
